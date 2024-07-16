@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OTP Verification</title>
+    <style>
+        .form {
+            display: flex;
+            align-items: center;
+            flex-direction: column;
+            justify-content: space-around;
+            width: 90%;
+            max-width: 300px;
+            background-color: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin: 20px auto;
+        }
+        
+        .title {
+            font-size: 20px;
+            font-weight: bold;
+            color: black;
+        }
+        
+        .message {
+            color: #a3a3a3;
+            font-size: 14px;
+            margin-top: 4px;
+            text-align: center;
+        }
+        
+        .inputs {
+            margin-top: 10px;
+            display: flex;
+            justify-content: center;
+        }
+        
+        .inputs input {
+            width: 32px;
+            height: 32px;
+            text-align: center;
+            border: none;
+            border-bottom: 1.5px solid #d2d2d2;
+            margin: 0 10px;
+            font-size: 18px;
+        }
+        
+        .inputs input:focus {
+            border-bottom: 1.5px solid royalblue;
+            outline: none;
+            transition: border-bottom 0.3s;
+        }
+
+        .shake {
+            animation: shake 0.5s;
+        }
+
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+            100% { transform: translateX(0); }
+        }
+        
+        .action {
+            margin-top: 24px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: none;
+            background-color: royalblue;
+            color: white;
+            cursor: pointer;
+            align-self: end;
+            transition: background-color 0.3s;
+        }
+
+        .action:hover {
+            background-color: darkblue;
+        }
+
+        .resend {
+            margin-top: 10px;
+            font-size: 14px;
+            color: royalblue;
+            cursor: pointer;
+        }
+
+        .resend.disabled {
+            color: #a3a3a3;
+            cursor: not-allowed;
+        }
+
+        .error {
+            color: red;
+            font-size: 12px;
+            margin-top: 8px;
+            display: none;
+        }
+
+        .counter {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #a3a3a3;
+        }
+
+        .otp-options {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .copy-otp, .show-hide-otp {
+            font-size: 14px;
+            color: royalblue;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <form class="form" id="otpForm">
+        <div class="title">OTP</div>
+        <div class="title">Verification Code</div>
+        <p class="message">We have sent a verification code to your mobile number</p>
+        <div class="inputs" id="otpInputs">
+            <input id="input1" type="text" maxlength="1" oninput="moveNext(this, 'input2')" onkeydown="handleBackspace(event, this, '')">
+            <input id="input2" type="text" maxlength="1" oninput="moveNext(this, 'input3')" onkeydown="handleBackspace(event, this, 'input1')">
+            <input id="input3" type="text" maxlength="1" oninput="moveNext(this, 'input4')" onkeydown="handleBackspace(event, this, 'input2')">
+            <input id="input4" type="text" maxlength="1" oninput="autoSubmit()" onkeydown="handleBackspace(event, this, 'input3')">
+        </div>
+        <div class="otp-options">
+            <span class="copy-otp" onclick="copyOTP()">Copy OTP</span>
+            <span class="show-hide-otp" onclick="toggleOTPVisibility()">Show OTP</span>
+        </div>
+        <p class="resend disabled" id="resendOTP" onclick="resendOTP()">Resend OTP in <span id="timer">30</span>s</p>
+        <p class="counter" id="charCounter">0/4</p>
+        <button class="action" type="submit">Verify Me</button>
+        <p class="error" id="errorMessage">Please fill in all fields</p>
+    </form>
+
+    <script>
+        let timer = 30;
+        let resendInterval;
+        let otpVisible = false;
+
+        function startResendTimer() {
+            resendInterval = setInterval(() => {
+                timer--;
+                document.getElementById('timer').innerText = timer;
+                if (timer === 0) {
+                    clearInterval(resendInterval);
+                    document.getElementById('resendOTP').classList.remove('disabled');
+                    document.getElementById('resendOTP').innerText = 'Resend OTP';
+                }
+            }, 1000);
+        }
+
+        function resendOTP() {
+            if (timer === 0) {
+                alert('OTP Resent!');
+                timer = 30;
+                document.getElementById('resendOTP').classList.add('disabled');
+                document.getElementById('timer').innerText = timer;
+                startResendTimer();
+            }
+        }
+
+        function moveNext(current, nextFieldID) {
+            if (current.value.length === current.maxLength) {
+                if (nextFieldID) {
+                    document.getElementById(nextFieldID).focus();
+                }
+            }
+            updateCounter();
+        }
+
+        function handleBackspace(event, current, prevFieldID) {
+            if (event.key === 'Backspace' && current.value.length === 0 && prevFieldID) {
+                document.getElementById(prevFieldID).focus();
+            }
+            updateCounter();
+        }
+
+        function pasteOTP(event) {
+            const clipboardData = event.clipboardData || window.clipboardData;
+            const pastedData = clipboardData.getData('Text');
+            const inputs = document.querySelectorAll('.inputs input');
+            inputs.forEach((input, index) => {
+                input.value = pastedData[index] || '';
+            });
+            updateCounter();
+        }
+
+        function updateCounter() {
+            const inputs = document.querySelectorAll('.inputs input');
+            const filledCount = Array.from(inputs).filter(input => input.value !== '').length;
+            document.getElementById('charCounter').innerText = `${filledCount}/4`;
+        }
+
+        function autoSubmit() {
+            const inputs = document.querySelectorAll('.inputs input');
+            const allFilled = Array.from(inputs).every(input => input.value !== '');
+            if (allFilled) {
+                document.getElementById('otpForm').dispatchEvent(new Event('submit'));
+            }
+        }
+
+        function copyOTP() {
+            const inputs = document.querySelectorAll('.inputs input');
+            const otp = Array.from(inputs).map(input => input.value).join('');
+            navigator.clipboard.writeText(otp).then(() => {
+                alert('OTP Copied to Clipboard');
+            });
+        }
+
+        function toggleOTPVisibility() {
+            const inputs = document.querySelectorAll('.inputs input');
+            otpVisible = !otpVisible;
+            inputs.forEach(input => {
+                input.type = otpVisible ? 'text' : 'password';
+            });
+            document.querySelector('.show-hide-otp').innerText = otpVisible ? 'Hide OTP' : 'Show OTP';
+        }
+
+        document.getElementById('otpForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const inputs = document.querySelectorAll('.inputs input');
+            let allFilled = true;
+            let validFormat = true;
+            inputs.forEach(input => {
+                if (input.value === '') {
+                    allFilled = false;
+                }
+                if (isNaN(input.value) || input.value.length !== 1) {
+                    validFormat = false;
+                }
+            });
+            if (allFilled && validFormat) {
+                alert('OTP Verified Successfully!');
+            } else {
+                document.getElementById('errorMessage').style.display = 'block';
+                inputs.forEach(input => {
+                    input.value = '';
+                });
+                inputs[0].focus();
+                document.getElementById('otpInputs').classList.add('shake');
+                setTimeout(() => {
+                    document.getElementById('otpInputs').classList.remove('shake');
+                }, 500);
+            }
+        });
+
+        document.querySelectorAll('.inputs input').forEach(input => {
+            input.addEventListener('input', function() {
+                this.value = this.value.replace(/[^0-9]/g, '');
+                document.getElementById('errorMessage').style.display = 'none';
+            });
+        });
+
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                document.getElementById('otpForm').dispatchEvent(new Event('submit'));
+            }
+        });
+
+        document.getElementById('otpInputs').addEventListener('paste', pasteOTP);
+
+        startResendTimer();
+    </script>
+</body>
+</html>
