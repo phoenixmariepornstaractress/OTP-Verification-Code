@@ -114,10 +114,17 @@
             margin-top: 10px;
         }
 
-        .copy-otp, .show-hide-otp {
+        .copy-otp, .show-hide-otp, .clear-otp {
             font-size: 14px;
             color: royalblue;
             cursor: pointer;
+        }
+
+        .expired {
+            color: red;
+            font-size: 14px;
+            margin-top: 10px;
+            display: none;
         }
     </style>
 </head>
@@ -125,7 +132,7 @@
     <form class="form" id="otpForm">
         <div class="title">OTP</div>
         <div class="title">Verification Code</div>
-        <p class="message">We have sent a verification code to your mobile number</p>
+        <p class="message" id="otpMessage">We have sent a verification code to your mobile number</p>
         <div class="inputs" id="otpInputs">
             <input id="input1" type="text" maxlength="1" oninput="moveNext(this, 'input2')" onkeydown="handleBackspace(event, this, '')">
             <input id="input2" type="text" maxlength="1" oninput="moveNext(this, 'input3')" onkeydown="handleBackspace(event, this, 'input1')">
@@ -135,17 +142,21 @@
         <div class="otp-options">
             <span class="copy-otp" onclick="copyOTP()">Copy OTP</span>
             <span class="show-hide-otp" onclick="toggleOTPVisibility()">Show OTP</span>
+            <span class="clear-otp" onclick="clearOTP()">Clear OTP</span>
         </div>
         <p class="resend disabled" id="resendOTP" onclick="resendOTP()">Resend OTP in <span id="timer">30</span>s</p>
         <p class="counter" id="charCounter">0/4</p>
         <button class="action" type="submit">Verify Me</button>
         <p class="error" id="errorMessage">Please fill in all fields</p>
+        <p class="expired" id="otpExpired">OTP has expired. Please request a new one.</p>
     </form>
 
     <script>
         let timer = 30;
         let resendInterval;
         let otpVisible = false;
+        let generatedOTP = '';
+        let otpExpirationTimeout;
 
         function startResendTimer() {
             resendInterval = setInterval(() => {
@@ -154,7 +165,7 @@
                 if (timer === 0) {
                     clearInterval(resendInterval);
                     document.getElementById('resendOTP').classList.remove('disabled');
-                    document.getElementById('resendOTP').innerText = 'Resend OTP';
+                    document.getElementById('resendOTP').innerHTML = 'Resend OTP';
                 }
             }, 1000);
         }
@@ -162,10 +173,13 @@
         function resendOTP() {
             if (timer === 0) {
                 alert('OTP Resent!');
+                generateOTP();
+                sendOTPToEmail();
                 timer = 30;
                 document.getElementById('resendOTP').classList.add('disabled');
                 document.getElementById('timer').innerText = timer;
                 startResendTimer();
+                resetOTPExpiration();
             }
         }
 
@@ -226,6 +240,38 @@
             document.querySelector('.show-hide-otp').innerText = otpVisible ? 'Hide OTP' : 'Show OTP';
         }
 
+        function clearOTP() {
+            const inputs = document.querySelectorAll('.inputs input');
+            inputs.forEach(input => {
+                input.value = '';
+            });
+            inputs[0].focus();
+            updateCounter();
+        }
+
+        function generateOTP() {
+            generatedOTP = '';
+            for (let i = 0; i < 4; i++) {
+                generatedOTP += Math.floor(Math.random() * 10);
+            }
+            console.log('Generated OTP:', generatedOTP);
+            resetOTPExpiration();
+        }
+
+        function sendOTPToEmail() {
+            // Simulate sending OTP to email
+            console.log('Sending OTP to email:', generatedOTP);
+            alert('OTP sent to your email!');
+        }
+
+        function resetOTPExpiration() {
+            clearTimeout(otpExpirationTimeout);
+            document.getElementById('otpExpired').style.display = 'none';
+            otpExpirationTimeout = setTimeout(() => {
+                document.getElementById('otpExpired').style.display = 'block';
+            }, 30000); // Set OTP expiry to 30 seconds
+        }
+
         document.getElementById('otpForm').addEventListener('submit', function(event) {
             event.preventDefault();
             const inputs = document.querySelectorAll('.inputs input');
@@ -240,7 +286,20 @@
                 }
             });
             if (allFilled && validFormat) {
-                alert('OTP Verified Successfully!');
+                const enteredOTP = Array.from(inputs).map(input => input.value).join('');
+                if (enteredOTP === generatedOTP) {
+                    alert('OTP Verified Successfully!');
+                } else {
+                    document.getElementById('errorMessage').style.display = 'block';
+                    inputs.forEach(input => {
+                        input.value = '';
+                    });
+                    inputs[0].focus();
+                    document.getElementById('otpInputs').classList.add('shake');
+                    setTimeout(() => {
+                        document.getElementById('otpInputs').classList.remove('shake');
+                    }, 500);
+                }
             } else {
                 document.getElementById('errorMessage').style.display = 'block';
                 inputs.forEach(input => {
@@ -269,6 +328,8 @@
 
         document.getElementById('otpInputs').addEventListener('paste', pasteOTP);
 
+        generateOTP();
+        sendOTPToEmail();
         startResendTimer();
     </script>
 </body>
